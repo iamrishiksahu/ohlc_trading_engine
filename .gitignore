@@ -1,0 +1,56 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# VS Code settings
+.vscode/
+.code-workspace
+
+# Environment
+.venv/
+env/
+venv/
+*.env
+*.env.*
+
+# Token and secrets
+data/tokens/*.json
+
+# Logs
+logs/
+*.log
+
+outputs
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+*.pytest_cache/
+
+# MyPy and Pylint
+.mypy_cache/
+.pylint.d/
+
+# Build/Dist
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+*.orig
