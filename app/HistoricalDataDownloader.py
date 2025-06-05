@@ -42,7 +42,7 @@ class HistoricalDataDownloader:
         if 'code' in response and response['code'] != 200:
             # Some error occurred
             print(response)
-
+    
 
         histData = response['candles']
 

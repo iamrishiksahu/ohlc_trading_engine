@@ -43,6 +43,9 @@ coverage.xml
 # Build/Dist
 build/
 dist/
+*.exe
+*.spec
+
 *.egg-info/
 *.egg
 

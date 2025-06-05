@@ -121,6 +121,7 @@ class Logger:
                 cls._writer_task.cancel()
                 try:
                     await cls._writer_task
+                    Logger.log("Logger shutdown success")
                 except asyncio.CancelledError:
                     pass
 

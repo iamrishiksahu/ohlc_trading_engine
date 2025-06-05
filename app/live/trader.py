@@ -3,88 +3,85 @@ import json
 import os
 import time
 from datetime import datetime
-from strategies.SB_VOL import StrategySBVOL
 from fyers_apiv3 import fyersModel
 from fyers_apiv3.FyersWebsocket import data_ws
+from strategies.StrategyBase import StrategyBase, StrategySignal
+from strategies.SB_VOL import StrategySBVOL
 from utils.Logger import Logger
 
 class LiveTrader:
-    def __init__(self, fyers, symbol='NSE:RELIANCE-EQ', interval='5', strategy=None):
-        self.fyers = fyers
+    def __init__(self, fyers, lot_size, symbol='NSE:RELIANCE-EQ', interval='5', strategy:StrategyBase=None):
+        self.fyers: fyersModel.FyersModel = fyers
         self.symbol = symbol
+        self.lot_size = lot_size
         self.interval = interval  # string format as per Fyers: '1', '5', etc.
-        self.strategy = strategy or StrategySBVOL()
+        self.strategy = strategy
         self.candles = []
         self.active_position = None
+        self.current_position = 0
+        self.is_started = False
 
-    def on_message(self, message):
-        if message.get('symbol') != self.symbol:
+    def on_data(self, message):
+        signal = self.strategy.process()
+        Logger.log(f"TRADE_SIGNAL: {signal}")
+        
+        if signal == StrategySignal.NONE:
             return
-
-        candles = message.get('candles')
-        if candles:
-            for candle in candles:
-                ts, o, h, l, c, v = candle
-                self._update_candle(ts, o, h, l, c, v)
-
-    def _update_candle(self, ts, o, h, l, c, v):
-        timestamp = datetime.fromtimestamp(ts)
-        candle = {
-            'timestamp': timestamp,
-            'open': o,
-            'high': h,
-            'low': l,
-            'close': c,
-            'volume': v
+        
+        elif signal == StrategySignal.BUY:
+            order_qty = self.lot_size
+            if self.current_position < 0:
+                order_qty += -1 * self.current_position 
+            Logger.log(f"lot_size: {self.lot_size} |current_position: {self.current_position} | order_qty: {order_qty}")
+            self.place_order(order_qty)
+                
+        elif signal == StrategySignal.SELL:
+            order_qty = self.lot_size
+            if self.current_position > 0:
+                order_qty += self.current_position 
+            Logger.log(f"lot_size: {self.lot_size} |current_position: {self.current_position} | order_qty: {order_qty}")
+            self.place_order(order_qty)
+                        
+    def place_order(self, order_qty):
+        
+        side = 1 if order_qty > 0 else -1
+        
+        order = {
+            "symbol": self.symbol,
+            "qty": order_qty,
+            "type": 2, # market order
+            "side": side,
+            "productType": "MARGIN",
+            "limitPrice": 0,
+            "stopPrice": 0,
+            "disclosedQty": 0,
+            "validity": "DAY",
+            "offlineOrder": False,
+            "orderTag": "SB_VOL_FYERS_API"
         }
-
-        if self.candles and self.candles[-1]['timestamp'] == timestamp:
-            self.candles[-1] = candle
+        response = self.fyers.place_order(order)
+        
+        if response.get("s") == "ok":
+            Logger.log(f"Market order {response.get("id")} sent successfully, assuming filled!")
+            self.current_position = order_qty
         else:
-            self.candles.append(candle)
-
-        df = self._candles_df()
-        result = self.strategy.calculate(df)
-
-        if result.iloc[-1]['buy_signal']:
-            self._place_order('BUY')
-        elif result.iloc[-1]['sell_signal']:
-            self._place_order('SELL')
-
-    def _place_order(self, side):
-        Logger.log(f"Placing order: {side}", type=Logger.LogType.INFO)
-        if self.active_position != side:
-            # Close existing position if any
-            if self.active_position:
-                Logger.log(f"Closing {self.active_position} position", type=Logger.LogType.INFO)
-                # TODO: place exit order
-
-            # Place new order
-            Logger.log(f"Entering {side} position", type=Logger.LogType.INFO)
-            # TODO: place entry order via self.fyers.place_order()
-            self.active_position = side
-
-    def _candles_df(self):
-        import pandas as pd
-        return pd.DataFrame(self.candles)
+            Logger.error(f"Order sending failed {response}")
 
     def start(self):
-        Logger.log("Starting Live Trader", type=Logger.LogType.INFO)
-        socket = data_ws.FyersDataSocket(
-            access_token=self.fyers.access_token,
-            log_path=os.path.join("logs", "fyers_ws.log")
-        )
-        socket.on_message = self.on_message
-        socket.subscribe([self.symbol], self.interval)
-        socket.connect()
-
-
-def run():
-    # Assumes you have a fyers instance that is authenticated
-    from auth.fyers_auth import get_authenticated_fyers
-    fyers = get_authenticated_fyers()
-    trader = LiveTrader(fyers=fyers, symbol='NSE:RELIANCE-EQ', interval='5')
-    trader.start()
-
-if __name__ == "__main__":
-    run()
+        Logger.log("Starting Live Trader")
+        
+        if not self.validate():
+            Logger.log("Stoptting Live Trader")
+        
+        self.is_started = True
+        
+        
+        
+    def validate(self) -> bool:
+        if self.strategy is None:
+            Logger.error("No strategy object provided to live trader")
+            return False
+        
+        if not self.strategy.is_valid:
+            Logger.error("Strategy object provided to live trader found invalid")
+            return False
