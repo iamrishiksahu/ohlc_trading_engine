@@ -8,6 +8,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from fyers_apiv3 import fyersModel
 from .utils.Logger import Logger
 from .HistoricalDataDownloader import HistoricalDataDownloader
+from .live.trader import LiveTrader
+from .strategies.SB_VOL import StrategySBVOL, SBVolParams
 
 class Main:
     
@@ -112,7 +114,10 @@ class Main:
         Logger.log(profile)
         
         hdl = HistoricalDataDownloader(self.fyers)
-
+        strategy_params: SBVolParams = SBVolParams(atr_period=10, multiplier=3, use_true_atr=True)
+        strategy = StrategySBVOL(strategy_params)
+        live_trader = LiveTrader(self.fyers, lot_size=1, symbol="NSE:RELIANCE-EQ", interval=30, strategy=strategy)
+        live_trader.start()
         # Get the exact script name from the fyers web app.
         hdl.setScripts([
                "NSE:RELIANCE-EQ",
@@ -120,9 +125,9 @@ class Main:
         ])
         
         # Dates has to be entered in YYYY-MM-DD format only
-        startDate = "2025-01-01" 
-        endDate = "2025-01-04"
-        timeframe = "1"
+        startDate = "2025-06-01" 
+        endDate = "2025-06-14"
+        timeframe = "15"
         
         hdl.downloadData(startDate, endDate, timeframe)
         

@@ -3,9 +3,9 @@ import numpy as np
 import ta
 from enum import Enum
 from dataclasses import dataclass
-from utils.Logger import Logger
+from ..utils.Logger import Logger
 import ta.volatility
-from StrategyBase import StrategyBase, StrategySignal
+from .StrategyBase import StrategyBase, StrategySignal
 
 @dataclass
 class SBVolParams:
@@ -14,7 +14,7 @@ class SBVolParams:
     use_true_atr: bool = True
 
 class StrategySBVOL(StrategyBase):
-    def __init__(self, params):
+    def __init__(self, params: SBVolParams):
         self.params = params
         self.is_valid = False
         self.validate()

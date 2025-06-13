@@ -5,9 +5,10 @@ import time
 from datetime import datetime
 from fyers_apiv3 import fyersModel
 from fyers_apiv3.FyersWebsocket import data_ws
-from strategies.StrategyBase import StrategyBase, StrategySignal
-from strategies.SB_VOL import StrategySBVOL
-from utils.Logger import Logger
+from ..strategies.StrategyBase import StrategyBase, StrategySignal
+from ..strategies.SB_VOL import StrategySBVOL
+from ..utils.Logger import Logger
+from ..ActionScheduler import ActionScheduler, ActionSchedulerParams
 
 class LiveTrader:
     def __init__(self, fyers, lot_size, symbol='NSE:RELIANCE-EQ', interval='5', strategy:StrategyBase=None):
@@ -21,8 +22,11 @@ class LiveTrader:
         self.current_position = 0
         self.is_started = False
 
-    def on_data(self, message):
-        signal = self.strategy.process()
+    def on_data(self, df):
+        if self.is_started is False:
+            return
+        
+        signal = self.strategy.process(df)
         Logger.log(f"TRADE_SIGNAL: {signal}")
         
         if signal == StrategySignal.NONE:
@@ -43,6 +47,7 @@ class LiveTrader:
             self.place_order(order_qty)
                         
     def place_order(self, order_qty):
+        return
         
         side = 1 if order_qty > 0 else -1
         
@@ -66,14 +71,40 @@ class LiveTrader:
             self.current_position = order_qty
         else:
             Logger.error(f"Order sending failed {response}")
+            
+    def run(self):
+        # get data from fyers
+        params = {
+            "symbol": self.symbol,
+            "resolution": self.interval,
+            "date_format":"0",
+            "range_from":fromtimestamp,
+            "range_to":toTimestamp,
+            "cont_flag":"1"
+        }
+        df = self.fyers.history(params)
+        self.on_data(df)
+        
 
     def start(self):
         Logger.log("Starting Live Trader")
         
         if not self.validate():
-            Logger.log("Stoptting Live Trader")
+            Logger.log("Stoping Live Trader")
+            return
         
         self.is_started = True
+        
+        print("Live Trader Started")
+        
+        action_scheduler_params = ActionSchedulerParams(
+            start_time=datetime.time(9,15), 
+            end_time=datetime.time(15,30), 
+            interval=self.interval
+            )
+        action_scheduler = ActionScheduler(action_scheduler_params)
+        action_scheduler.schedule()
+        
         
         
         
