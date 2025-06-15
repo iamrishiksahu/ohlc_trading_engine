@@ -6,13 +6,7 @@ from pathlib import Path
 import threading
 from .Constants import Constants
 from .FileUtility import FileUtility
-
-
-class LogType(Enum):
-    INFO = "INFO"
-    WARNING = "WARNING"
-    ERROR = "ERROR"
-    CRITICAL = "CRITICAL"
+from ..common.enums import LogType
 
 
 class Logger:
@@ -77,6 +71,29 @@ class Logger:
             cls._start_background_worker()
             cls._started = True
             print("[Logger] Initialized")
+            
+    @classmethod
+    async def shutdown(cls):
+        async def _shutdown():
+            await asyncio.sleep(0.5)  # Let queue flush
+            if cls._writer_task:
+                cls._writer_task.cancel()
+                try:
+                    await cls._writer_task
+                    Logger.log("Logger shutdown success")
+                except asyncio.CancelledError:
+                    pass
+
+        try:
+            # Already in an async context
+            loop = asyncio.get_running_loop()
+            return asyncio.create_task(_shutdown())  # non-blocking
+        except RuntimeError:
+            # We're in a sync context, so run the shutdown safely
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(_shutdown())
+            loop.close()
 
     @classmethod
     def _format_log(cls, *args, type=LogType.INFO, sep=" ", end="\n") -> str:

@@ -59,7 +59,6 @@ class Main:
             Logger.log("⚠️ Failed to validate token:", e)
             return None
         
-        
     def authenticate(self):
         os.makedirs(self.token_dir, exist_ok=True)
 
@@ -143,9 +142,7 @@ class Main:
             return False
         
         return True
-            
         
-    
     async def start(self):
         Logger.init()
         if not self.load_config():
@@ -163,7 +160,6 @@ class Main:
         
         Logger.log(profile)
         
-        
         for config in self.trading_configs:
             try:
                 if config["strategy"] == "SB_VOL":
@@ -172,8 +168,8 @@ class Main:
                         multiplier=config["strategy_parameters"]["multiplier"], 
                         use_true_atr=config["strategy_parameters"]["use_true_atr"])
                     strategy = StrategySBVOL(strategy_params)
-                    live_trader = LiveTrader(config, self.fyers, strategy=strategy)
                     
+                    live_trader = LiveTrader(config, self.fyers, strategy=strategy)
                     live_trader.start()
                     
                     self.live_trader_instances.append(live_trader)
@@ -181,8 +177,7 @@ class Main:
                     Logger.log(f"Unknown strategy name provided for instance: {config["instance_name"]}")
                 
             except Exception as e:
-                Logger.error(f"Error loading strategy instance: {config["instance_name"]}. {e}")
-            
+                Logger.error(f"Error loading strategy instance: {config["instance_name"]}. {e}") 
 
     async def stop(self):
         await Logger.shutdown()

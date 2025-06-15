@@ -1,10 +1,5 @@
 from abc import abstractmethod
-from enum import Enum
-
-class StrategySignal(str, Enum):
-    BUY = "BUY"
-    SELL = "SELL"
-    NONE = "NONE"
+from ..common.enums import StrategySignal
     
 class StrategyBase:
     

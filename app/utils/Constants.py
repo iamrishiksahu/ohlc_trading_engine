@@ -1,10 +1,13 @@
 from pathlib import Path
 from dotenv import load_dotenv
-import os
+from ..common.enums import ExecutionMode
 
 class Constants():
 
     load_dotenv()
+    
+    EXECTION_MODE: ExecutionMode = ExecutionMode.LIVE
+    BACKTESTING_PERIOD = 0
     
     DIR_ROOT = Path(__file__).resolve().parent.parent.parent
     

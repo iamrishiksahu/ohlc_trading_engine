@@ -1,16 +1,15 @@
-import asyncio
 import json
-import os
 import time
 import pandas as pd
+import time as time_module
 from datetime import time, datetime, timedelta
 from fyers_apiv3 import fyersModel
-from fyers_apiv3.FyersWebsocket import data_ws
 from ..strategies.StrategyBase import StrategyBase, StrategySignal
-from ..strategies.SB_VOL import StrategySBVOL
 from ..utils.Logger import Logger
 from ..utils.FileUtility import FileUtility
 from ..ActionScheduler import ActionScheduler, ActionSchedulerParams
+from ..utils.Constants import Constants
+from ..common.enums import ExecutionMode
 
 class LiveTrader:
     def __init__(self, config, fyers, strategy:StrategyBase=None):
@@ -25,13 +24,18 @@ class LiveTrader:
         self.active_position = None
         self.current_position = 0
         self.is_started = False
+        self.backtest_current_time = None
 
     def on_data(self, df):
         if self.is_started is False:
             return
         
         signal = self.strategy.process(df)
-        self.log(f"TRADE_SIGNAL: {signal}")
+        if Constants.EXECTION_MODE == ExecutionMode.BACKTEST:
+            self.on_backtest_signal(signal)
+        else:
+            self.log(f"TRADE_SIGNAL: {signal}")
+        
         
         if signal == StrategySignal.NONE:
             return
@@ -51,6 +55,9 @@ class LiveTrader:
             self.place_order(order_qty)
                         
     def place_order(self, order_qty):
+        if Constants.EXECTION_MODE is not ExecutionMode.LIVE:
+            return
+        
         return
         
         side = 1 if order_qty > 0 else -1
@@ -76,12 +83,12 @@ class LiveTrader:
         else:
             self.log_error(f"Order sending failed {response}")
             
-    def get_5_day_range_ending_last_closed_candle(self, interval_minutes: int):
+    def get_5_day_range_ending_last_closed_candle(self, now, interval_minutes: int):
         # Step 1: Avoid landing exactly at the next candle's open time
-        simulated_date_str="12-06-2025"
-        simulated_time_str="09:15"
-        now = datetime.strptime(f"{simulated_date_str} {simulated_time_str}", "%d-%m-%Y %H:%M")
         
+        if Constants.EXECTION_MODE == ExecutionMode.LIVE or now is None:
+            now = datetime.now()
+                    
         # now = datetime.now()
         adjusted_now = now - timedelta(seconds=1)
 
@@ -99,13 +106,16 @@ class LiveTrader:
         return int(start.timestamp()), int(end.timestamp())
 
             
-    def run(self):
+    def run(self, curr_time = None):
 
-        range_from, range_to = self.get_5_day_range_ending_last_closed_candle(interval_minutes=30)
+        # simulated_date_str="12-06-2025"
+        # simulated_time_str="09:15"
+        # curr_time = datetime.strptime(f"{simulated_date_str} {simulated_time_str}", "%d-%m-%Y %H:%M")
+        range_from, range_to = self.get_5_day_range_ending_last_closed_candle(curr_time, interval_minutes=self.interval)
     
         params = {
             "symbol": self.symbol,
-            "resolution": 30,
+            "resolution": self.interval,
             "date_format": "0",
             "range_from": range_from,
             "range_to": range_to,
@@ -118,8 +128,9 @@ class LiveTrader:
             return
         
         df = pd.DataFrame(data['candles'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['datetime'] = pd.to_datetime(df['timestamp'], unit='s', utc=True).dt.tz_convert('Asia/Kolkata')
 
-        self.log(df.head())
+        self.log(df.tail())
         self.on_data(df)
         
     def load_saved_state(self):
@@ -155,7 +166,41 @@ class LiveTrader:
             return False
         
         return True
+    
+    def on_backtest_signal(self, signal: StrategySignal):
+        # The current time will be the action time not the candle's time with which the signal is generated.
+        self.log(f"Action: {signal} | Action Candle: {self.backtest_current_time}")
+    
+    def backtest_loop(self, days: int):
+        """
+        Run the backtest loop for the given number of days and time interval.
+        """
+        end_time = datetime.now()
         
+        # Get the date `days` ago and set time to 09:15
+        start_date = (end_time - timedelta(days=days)).date()
+        start_time = datetime.combine(start_date, time(9, 15))  # backtesting always starts from 9:15 AM
+        
+        self.log(f"Backtest period: {start_time.strftime("%Y-%m-%d %H:%M:%S")} to {end_time.strftime("%Y-%m-%d %H:%M:%S")}")
+        
+        market_open = time(self.config["start_time"][0],self.config["start_time"][1])
+        market_close = time(self.config["end_time"][0],self.config["end_time"][1])
+        
+        self.log(f"Market hours: {market_open.strftime("%Y-%m-%d %H:%M:%S")} to {market_close.strftime("%Y-%m-%d %H:%M:%S")}")
+        
+        self.backtest_current_time = start_time
+        while self.backtest_current_time <= end_time:
+            if market_open <= self.backtest_current_time.time() <= market_close:
+                self.run(self.backtest_current_time)
+                time_module.sleep(0.1)
+                
+            self.backtest_current_time += timedelta(minutes=self.interval)
+            
+        self.log("Backtesting completing, shutting down")
+            
+        import os
+        import signal
+        os.kill(os.getpid(), signal.SIGINT)        
 
     def start(self):
         self.log("Starting Live Trader")
@@ -169,17 +214,22 @@ class LiveTrader:
         
         self.is_started = True
         
-        self.load_saved_state()
+        self.log("Trade Engine Started")
         
-        self.log("Live Trader Started")
+        if Constants.EXECTION_MODE == ExecutionMode.LIVE:
+            self.load_saved_state()
         
-        action_scheduler_params = ActionSchedulerParams(
-            start_time=time(self.config["start_time"][0],self.config["start_time"][1]), 
-            end_time=time(self.config["end_time"][0],self.config["end_time"][1]), 
-            interval=self.config["interval"]
-            )
-        action_scheduler = ActionScheduler(action_scheduler_params)
-        action_scheduler.schedule(self.run)
+            action_scheduler_params = ActionSchedulerParams(
+                start_time=time(self.config["start_time"][0],self.config["start_time"][1]), 
+                end_time=time(self.config["end_time"][0],self.config["end_time"][1]), 
+                interval=self.config["interval"]
+                )
+            action_scheduler = ActionScheduler(action_scheduler_params)
+            action_scheduler.schedule(self.run)
+            
+        elif Constants.EXECTION_MODE == ExecutionMode.BACKTEST:
+            self.backtest_loop(Constants.BACKTESTING_PERIOD)
+            pass
 
         
     def validate(self) -> bool:
