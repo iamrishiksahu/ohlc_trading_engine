@@ -7,6 +7,7 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from fyers_apiv3 import fyersModel
 from .utils.Logger import Logger
+from .utils.FileUtility import FileUtility
 from .HistoricalDataDownloader import HistoricalDataDownloader
 from .live.trader import LiveTrader
 from .strategies.SB_VOL import StrategySBVOL, SBVolParams
@@ -18,10 +19,13 @@ class Main:
         self.fyers = None
 
         # User credentials
-        self.client_id = """"  # e.g., 'AB1234'
-        self.app_id = """"  # e.g., 'AB1234-100'
-        self.app_secret = """"
-        self.redirect_uri = """"
+        self.client_id = ""  # e.g., 'AB1234'
+        self.app_id = ""  # e.g., 'AB1234-100'
+        self.app_secret = ""
+        self.redirect_uri = ""
+        
+        self.trading_configs = []
+        self.live_trader_instances = []
 
         # Config
         self.token_dir = "./data/tokens"
@@ -97,7 +101,7 @@ class Main:
             access_token = token_data.get("access_token")
 
             if not access_token:
-                raise Exception("❌ Failed to generate access token.")
+                raise Exception("Failed to generate access token.")
 
             # Save token
             with open(self.token_path, "w") as f:
@@ -107,38 +111,78 @@ class Main:
             # Create global fyers instance
             self.fyers = fyersModel.FyersModel(client_id=self.app_id, token=access_token, log_path="")
 
+    def load_config(self) -> bool:
+        
+        if FileUtility.checkIfFileExists("./config.json")["data"] is not True:
+            Logger.error(f"Couldn't load config file. Shutting down.")
+            return False
+        
+        file_data = FileUtility.readFile("./config.json")["data"]
+        
+        try:
+            json_data = json.loads(file_data)
+            fyers_config = json_data["fyers"]
+            
+            self.app_id = fyers_config["app_id"]
+            self.app_secret = fyers_config["app_secret"]
+            self.client_id = fyers_config["client_id"]
+            self.redirect_uri = fyers_config["redirect_uri"]
+            
+            trading_config = json_data["trading"]
+            for t_cfg in trading_config:
+                if t_cfg["enabled"]:
+                    t_cfg["start_time"] = [int(part) for part in t_cfg["start_time"].split(":")]
+                    t_cfg["end_time"] = [int(part) for part in t_cfg["end_time"].split(":")]
+                    
+                    self.trading_configs.append(t_cfg)
+            
+            Logger.log(self.trading_configs)
+            
+        except Exception as e:
+            Logger.error(f"Error loading config: {e}")
+            return False
+        
+        return True
+            
+        
+    
     async def start(self):
         Logger.init()
+        if not self.load_config():
+            await self.stop()
+            return
+        
         self.authenticate()
+        
         profile = self.fyers.get_profile()
+        if profile.get("s") != "ok":
+            Logger.log(profile)
+            Logger.log("There is some problem connecting to fyers. Shutting down.")
+            await self.stop()
+            return
+        
         Logger.log(profile)
         
-        hdl = HistoricalDataDownloader(self.fyers)
-        strategy_params: SBVolParams = SBVolParams(atr_period=10, multiplier=3, use_true_atr=True)
-        strategy = StrategySBVOL(strategy_params)
-        live_trader = LiveTrader(self.fyers, lot_size=1, symbol="NSE:RELIANCE-EQ", interval=30, strategy=strategy)
-        live_trader.start()
-        # Get the exact script name from the fyers web app.
-        hdl.setScripts([
-               "NSE:RELIANCE-EQ",
-            # Add more if you want
-        ])
         
-        # Dates has to be entered in YYYY-MM-DD format only
-        startDate = "2025-06-01" 
-        endDate = "2025-06-14"
-        timeframe = "15"
-        
-        hdl.downloadData(startDate, endDate, timeframe)
-        
-        
-    async def stop(self):
-        await Logger.shutdown()
-        
-        
-
+        for config in self.trading_configs:
+            try:
+                if config["strategy"] == "SB_VOL":
+                    strategy_params: SBVolParams = SBVolParams(
+                        atr_period=config["strategy_parameters"]["atr_period"], 
+                        multiplier=config["strategy_parameters"]["multiplier"], 
+                        use_true_atr=config["strategy_parameters"]["use_true_atr"])
+                    strategy = StrategySBVOL(strategy_params)
+                    live_trader = LiveTrader(config, self.fyers, strategy=strategy)
+                    
+                    live_trader.start()
+                    
+                    self.live_trader_instances.append(live_trader)
+                else:
+                    Logger.log(f"Unknown strategy name provided for instance: {config["instance_name"]}")
+                
+            except Exception as e:
+                Logger.error(f"Error loading strategy instance: {config["instance_name"]}. {e}")
             
 
-
-
-    
+    async def stop(self):
+        await Logger.shutdown()

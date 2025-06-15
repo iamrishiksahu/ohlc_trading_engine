@@ -3,6 +3,7 @@ import threading
 import time
 from dataclasses import dataclass
 from .utils.Logger import Logger
+import asyncio
 
 @dataclass
 class ActionSchedulerParams:
@@ -26,20 +27,36 @@ class ActionScheduler():
     def __schedule_next(self):        
         next_run = self.__get_next_run_time()
         if not next_run:
-            Logger.log("Market closed or no next run scheduled today.")
+            Logger.log("Market closed or no next run scheduled today. Please close the application and restart tomorrow before market opening")
             return
 
         wait_seconds = max((next_run - datetime.datetime.now()).total_seconds(), 0)
         Logger.log(f"Next run scheduled at {next_run.strftime('%H:%M:%S')} (in {wait_seconds:.1f}s)")
 
+        def run_with_event_loop(func):
+            def wrapper():
+                import asyncio
+                import inspect
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    if inspect.iscoroutinefunction(func):
+                        loop.run_until_complete(func())
+                    else:
+                        func()
+                finally:
+                    loop.close()
+            return wrapper
+
         def action():
-            threading.Thread(target=self.action).start()
+            thread_target = run_with_event_loop(self.action)
+            threading.Thread(target=thread_target).start()
             self.__schedule_next()
-            
+
         timer = threading.Timer(wait_seconds, action)
         timer.daemon = True
         timer.start()
-        
+
     def __get_next_run_time(self):
         now = datetime.datetime.now()
         today = now.date()

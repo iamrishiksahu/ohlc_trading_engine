@@ -5,15 +5,6 @@ import os
 class Constants():
 
     load_dotenv()
-    TOTP_SECRET = os.getenv("TOTP_SECRET")
-    CLIENT_ID = os.getenv("CLIENT_ID")
-    PIN = os.getenv("PIN")
-    
-    APP_CLIENT_ID = os.getenv("APP_CLIENT_ID")
-    APP_SECRET_KEY = os.getenv("APP_SECRET_KEY")
-    APP_REDIRECT_URI = os.getenv("APP_REDIRECT_URI")
-    APP_RESPONSE_CODE = os.getenv("APP_RESPONSE_CODE")
-    APP_GRANT_TYPE = os.getenv("APP_GRANT_TYPE")
     
     DIR_ROOT = Path(__file__).resolve().parent.parent.parent
     

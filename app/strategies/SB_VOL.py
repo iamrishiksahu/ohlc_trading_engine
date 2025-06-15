@@ -15,9 +15,9 @@ class SBVolParams:
 
 class StrategySBVOL(StrategyBase):
     def __init__(self, params: SBVolParams):
-        self.params = params
+        self.strategy_params = params
         self.is_valid = False
-        self.validate()
+        self.validate(params)
 
         
     def process(self, df) -> StrategySignal:
@@ -52,9 +52,9 @@ class StrategySBVOL(StrategyBase):
         
         signal = StrategySignal.NONE
         
-        if (trend == 1) & (trend.shift(1) == -1):
+        if (trend.iloc[-1] == 1) and (trend.shift(1).iloc[-1] == -1):
             signal = StrategySignal.BUY
-        elif (trend == -1) & (trend.shift(1) == 1):
+        elif (trend.iloc[-1] == -1) and (trend.shift(1).iloc[-1] == 1):
             signal = StrategySignal.SELL
         
         return signal
