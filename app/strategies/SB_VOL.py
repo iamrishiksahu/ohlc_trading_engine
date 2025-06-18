@@ -17,12 +17,13 @@ class SBVolParams:
     use_true_atr: bool = True
 
 class StrategySBVOL(StrategyBase):
-    def __init__(self, params: SBVolParams):
+    def __init__(self, params: SBVolParams, interval: int):
         self.strategy_params = params
         self.is_valid = False
+        self.required_ohlc_length = 1
+        self.interval = interval
         self.validate(params)
 
-        
     def process(self, df) -> StrategySignal:
         if not self.is_valid:
             return
@@ -36,14 +37,15 @@ class StrategySBVOL(StrategyBase):
         trend = []
         up_final = []
         dn_final = []
-        curr_trend = 1  # default trend
-        trend_data = []
+        signals = []
+        curr_trend = 1  # Initial trend
 
         for i in range(len(df)):
             if i == 0:
                 up_final.append(up.iloc[i])
                 dn_final.append(dn.iloc[i])
                 trend.append(curr_trend)
+                signals.append(StrategySignal.NONE)
                 continue
 
             prev_close = df['close'].iloc[i - 1]
@@ -56,22 +58,28 @@ class StrategySBVOL(StrategyBase):
             new_up = max(curr_up, prev_up) if prev_close > prev_up else curr_up
             new_dn = min(curr_dn, prev_dn) if prev_close < prev_dn else curr_dn
 
-            # Trend change condition
             if trend[-1] == -1 and df['close'].iloc[i] > prev_dn:
                 curr_trend = 1
+                signals.append(StrategySignal.BUY)
             elif trend[-1] == 1 and df['close'].iloc[i] < prev_up:
                 curr_trend = -1
+                signals.append(StrategySignal.SELL)
             else:
                 curr_trend = trend[-1]
+                signals.append(StrategySignal.NONE)
 
             up_final.append(new_up)
             dn_final.append(new_dn)
             trend.append(curr_trend)
-            trend_data.append({"t": curr_trend, "time": df["datetime"].iloc[i]})
 
-
+        # === Append results to df ===
+        df['supertrend_up'] = up_final
+        df['supertrend_dn'] = dn_final
+        df['supertrend_trend'] = trend
+        df['supertrend_signal'] = signals
 
         trend_series = pd.Series(trend, index=df.index)
+        
 
         signal = StrategySignal.NONE
         if trend_series.iloc[-1] == 1 and trend_series.shift(1).iloc[-1] == -1:
@@ -79,7 +87,8 @@ class StrategySBVOL(StrategyBase):
         elif trend_series.iloc[-1] == -1 and trend_series.shift(1).iloc[-1] == 1:
             signal = StrategySignal.SELL
 
-        return signal
+        Logger.log(f"SB_VOL:: candle: {df["datetime"].iloc[-1]}, last_trend: {trend_series.iloc[-1]}, curr_trend: {trend_series.shift(1).iloc[-1]}, up: {up_final[-1]}, dn: {dn_final[-1]}, signal: {signals[-1]}")
+        return signals[-1]
     
     def calculate_atr(self, df):
         if self.strategy_params.use_true_atr:
@@ -100,6 +109,8 @@ class StrategySBVOL(StrategyBase):
             Logger.error("use_true_atr must be a boolean")
             return
         self.is_valid = True
+        self.required_ohlc_length = max(self.strategy_params.atr_period / 10 * self.interval / 2, 1)
+        Logger.log(f"required_ohlc_length: {self.required_ohlc_length}")
         Logger.log("Strategy validated successfully")
         
     def plot(self, df):

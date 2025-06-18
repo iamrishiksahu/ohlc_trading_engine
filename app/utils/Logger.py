@@ -10,7 +10,7 @@ from ..common.enums import LogType
 
 
 class Logger:
-    LOG_DIR = Constants.DIR_LOGS
+    LOG_DIR = os.path.join("./logs")
     MAX_LOG_COUNT_PER_FILE = 3000
 
     _queue = asyncio.Queue()
@@ -76,13 +76,7 @@ class Logger:
     async def shutdown(cls):
         async def _shutdown():
             await asyncio.sleep(0.5)  # Let queue flush
-            if cls._writer_task:
-                cls._writer_task.cancel()
-                try:
-                    await cls._writer_task
-                    Logger.log("Logger shutdown success")
-                except asyncio.CancelledError:
-                    pass
+            Logger.log("Logger shutdown success")
 
         try:
             # Already in an async context

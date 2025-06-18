@@ -132,6 +132,8 @@ class Main:
                 if t_cfg["enabled"]:
                     t_cfg["start_time"] = [int(part) for part in t_cfg["start_time"].split(":")]
                     t_cfg["end_time"] = [int(part) for part in t_cfg["end_time"].split(":")]
+                    t_cfg["market_open_time"] = [int(part) for part in t_cfg["market_open_time"].split(":")]
+                    t_cfg["market_close_time"] = [int(part) for part in t_cfg["market_close_time"].split(":")]
                     
                     self.trading_configs.append(t_cfg)
             
@@ -160,6 +162,15 @@ class Main:
         
         Logger.log(profile)
         
+        # hdl = HistoricalDataDownloader(self.fyers)
+        # hdl.setScripts([
+        #     "NSE:NIFTY50-INDEX"
+        # ])
+        # hdl.downloadData("2022-01-01", "2025-06-18", "30")
+        
+        
+        # return
+        
         for config in self.trading_configs:
             try:
                 if config["strategy"] == "SB_VOL":
@@ -167,7 +178,7 @@ class Main:
                         atr_period=config["strategy_parameters"]["atr_period"], 
                         multiplier=config["strategy_parameters"]["multiplier"], 
                         use_true_atr=config["strategy_parameters"]["use_true_atr"])
-                    strategy = StrategySBVOL(strategy_params)
+                    strategy = StrategySBVOL(strategy_params, config["interval"])
                     
                     live_trader = LiveTrader(config, self.fyers, strategy=strategy)
                     live_trader.start()

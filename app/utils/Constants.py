@@ -31,8 +31,6 @@ class Constants():
     URL_GET_AUTH_CODE = "https://api.fyers.in/api/v2/token"
        
     
-    DIR_LOGS = DIR_ROOT.joinpath("logs")
-    
     LIVE_MARKET_FEED_FORWARD_EVENT_NAME = "LiveMarketFeed"
     
     

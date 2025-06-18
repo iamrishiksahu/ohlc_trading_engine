@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import json
 
 class FileUtility:
     
@@ -44,6 +45,29 @@ class FileUtility:
     
             except Exception as e:
                 return {"data":False, "log": (f"Error appending file {file_path}. ", e)}
+            
+    @staticmethod
+    def updateJsonObjectFile(file_path, key, value):
+        try:
+            # Step 1: Read existing content (if any)
+            json_data = {}
+            read_result = FileUtility.readFile(file_path)
+            if read_result["data"]:
+                try:
+                    json_data = json.loads(read_result["data"])
+                except json.JSONDecodeError:
+                    return {"data": False, "log": f"Invalid JSON in {file_path}."}
+
+            # Step 2: Update or insert the key
+            json_data[key] = value
+
+            # Step 3: Save back the updated dictionary
+            with open(file_path, "w") as f:
+                json.dump(json_data, f, indent=4)
+            return {"data": True, "log": f"Key '{key}' updated in {file_path}."}
+
+        except Exception as e:
+            return {"data": False, "log": f"Error updating key in JSON file: {e}"}
             
     @staticmethod
     def createDirectoryIfNotExists(file_path):
