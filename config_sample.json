@@ -1,0 +1,29 @@
+{
+    "fyers": {
+        "client_id": "AB12345",
+        "app_id": "AJKBDF324-100",
+        "app_secret": "ADFAEF345DFS",
+        "redirect_uri": "http://127.0.0.1:8080/callback"
+    },
+
+    "trading": [
+        {
+            "instance_name": "sample_instance",
+            "enabled": true,
+            "symbol": "NSE:NIFTY50-INDEX",
+            "lot_size": 1,
+            "interval": 30,
+            "strategy": "SB_VOL",
+            "start_time": "09:15",
+            "end_time": "15:30",
+            "market_open_time": "09:15",
+            "market_close_time": "15:30",
+            "strategy_parameters": {
+                "atr_period": 10,
+                "multiplier": 3,
+                "use_true_atr": true
+            }
+        }
+    ]
+
+}
