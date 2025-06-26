@@ -24,7 +24,7 @@ class StrategySBVOL(StrategyBase):
         self.interval = interval
         self.validate(params)
 
-    def process(self, df) -> StrategySignal:
+    def process(self, df: pd.DataFrame) -> StrategySignal:
         if not self.is_valid:
             return
         
@@ -90,7 +90,7 @@ class StrategySBVOL(StrategyBase):
         Logger.log(f"SB_VOL:: candle: {df["datetime"].iloc[-1]}, last_trend: {trend_series.iloc[-1]}, curr_trend: {trend_series.shift(1).iloc[-1]}, up: {up_final[-1]}, dn: {dn_final[-1]}, signal: {signals[-1]}")
         return signals[-1]
     
-    def calculate_atr(self, df):
+    def calculate_atr(self, df: pd.DataFrame):
         if self.strategy_params.use_true_atr:
             return ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=self.strategy_params.atr_period)
         else:
@@ -113,7 +113,7 @@ class StrategySBVOL(StrategyBase):
         Logger.log(f"required_ohlc_length: {self.required_ohlc_length}")
         Logger.log("Strategy validated successfully")
         
-    def plot(self, df):
+    def plot(self, df: pd.DataFrame):
         df = df.dropna().copy()
         fig, ax = plt.subplots(figsize=(14, 6))
 

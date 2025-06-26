@@ -12,21 +12,21 @@ class HistoricalDataDownloader:
     
     def __init__(self, broker):
         self.__broker_instance = broker
-        self.scripts = []
+        self.scripts: list = []
         self.cache = []
 
-    def perform(self,frmdt, todt, scrpt, timeframe="1D"):
-        fromDatestr = frmdt
-        toDatestr = todt
-        fromDateObj = datetime.strptime(fromDatestr, "%Y-%m-%d")
-        toDateObj = datetime.strptime(toDatestr, "%Y-%m-%d")
+    def perform(self, frmdt: str, todt: str, scrpt: str, timeframe: str="1D"):
+        fromDatestr: str = frmdt
+        toDatestr: str = todt
+        fromDateObj: datetime = datetime.strptime(fromDatestr, "%Y-%m-%d")
+        toDateObj: datetime = datetime.strptime(toDatestr, "%Y-%m-%d")
 
         # Convert to Unix timestamp
-        fromTimestamp = str(int(fromDateObj.timestamp()))
-        toTimestamp = str(int(toDateObj.timestamp()))
+        fromTimestamp: str = str(int(fromDateObj.timestamp()))
+        toTimestamp: str = str(int(toDateObj.timestamp()))
 
 
-        data = {
+        data: dict = {
             "symbol": scrpt,
             "resolution": timeframe,
             "date_format":"0",
@@ -44,7 +44,7 @@ class HistoricalDataDownloader:
             print(response)
     
 
-        histData = response['candles']
+        histData: list = response['candles']
 
         # Convert data into string
         newHistData = ""
@@ -55,10 +55,10 @@ class HistoricalDataDownloader:
             
         return newHistData
 
-    def setScripts(self, scripts):
+    def setScripts(self, scripts: list):
         self.scripts = scripts
 
-    def downloadData(self, startDate, endDate, timeframe = "1D"):
+    def downloadData(self, startDate: str, endDate: str, timeframe: str = "1D"):
         for script in self.scripts:
             fromDt = startDate
             toDt = self.get_date_after_n_days(fromDt, 99)
@@ -79,7 +79,7 @@ class HistoricalDataDownloader:
             
             MainUtil.writeFile(Constants.DIR_HISTORICAL_DATA.joinpath(filename), data)
         
-    def get_date_after_n_days(self, date_str, n):
+    def get_date_after_n_days(self, date_str: str, n: int):
 
         # Convert the input string to a datetime object
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
@@ -90,7 +90,7 @@ class HistoricalDataDownloader:
         # Return the resulting date as a string in the same format
         return new_date.strftime("%Y-%m-%d")
 
-    def downloadStrategy(self, strategyStr, startDate, endDate, timefram = "1D"):
+    def downloadStrategy(self, strategyStr: str, startDate: str, endDate: str, timeframe: str = "1D"):
         if self.is_valid_strategy_expression(strategyStr) is not True:
             return
         

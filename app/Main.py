@@ -16,16 +16,16 @@ class Main:
     
     def __init__(self):
         
-        self.fyers = None
+        self.fyers: fyersModel.FyersModel = None
 
         # User credentials
-        self.client_id = ""  # e.g., 'AB1234'
-        self.app_id = ""  # e.g., 'AB1234-100'
-        self.app_secret = ""
-        self.redirect_uri = ""
+        self.client_id: str = ""  # e.g., 'AB1234'
+        self.app_id: str = ""  # e.g., 'AB1234-100'
+        self.app_secret: str = ""
+        self.redirect_uri: str = ""
         
         self.trading_configs = []
-        self.live_trader_instances = []
+        self.live_trader_instances: list[LiveTrader] = []
 
         # Config
         self.token_dir = "./data/tokens"
@@ -33,7 +33,6 @@ class Main:
 
         # Global variable to store the authorization code
         self.auth_code = None
-        self.fyers = None
 
     # === Check if token already exists and is valid ===
     def load_valid_token(self):
@@ -64,7 +63,7 @@ class Main:
 
         access_token = self.load_valid_token()
         if not access_token:
-            session = fyersModel.SessionModel(
+            session: fyersModel.SessionModel = fyersModel.SessionModel(
                 client_id=self.app_id,
                 secret_key=self.app_secret,
                 redirect_uri=self.redirect_uri,
@@ -74,7 +73,7 @@ class Main:
             auth_code_url = session.generate_authcode()
 
             # === Start local server to capture auth_code ===
-            auth_context = {"auth_code": None}
+            auth_context: dict = {"auth_code": None}
             class AuthCodeHandler(BaseHTTPRequestHandler):
                 def do_GET(self):
                     from urllib import parse
@@ -96,7 +95,7 @@ class Main:
             
             # Step 5: Get token
             session.set_token(auth_context["auth_code"])
-            token_data = session.generate_token()
+            token_data: dict = session.generate_token()
             access_token = token_data.get("access_token")
 
             if not access_token:
@@ -116,10 +115,10 @@ class Main:
             Logger.error(f"Couldn't load config file. Shutting down.")
             return False
         
-        file_data = FileUtility.readFile("./config.json")["data"]
+        file_data: dict[str, str] = FileUtility.readFile("./config.json")["data"]
         
         try:
-            json_data = json.loads(file_data)
+            json_data: json = json.loads(file_data)
             fyers_config = json_data["fyers"]
             
             self.app_id = fyers_config["app_id"]
@@ -180,7 +179,7 @@ class Main:
                         use_true_atr=config["strategy_parameters"]["use_true_atr"])
                     strategy = StrategySBVOL(strategy_params, config["interval"])
                     
-                    live_trader = LiveTrader(config, self.fyers, strategy=strategy)
+                    live_trader:LiveTrader = LiveTrader(config, self.fyers, strategy=strategy)
                     live_trader.start()
                     
                     self.live_trader_instances.append(live_trader)

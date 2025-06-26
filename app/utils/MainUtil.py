@@ -35,30 +35,30 @@ class MainUtil:
         
     
     @staticmethod
-    def readFile(file_path):
+    def readFile(file_path: str):
         return MainUtil.execute(FileUtility.readFile, file_path)
     
     @staticmethod
-    def deleteFile(file_path):
+    def deleteFile(file_path: str):
        return MainUtil.execute(FileUtility.deleteFile,file_path)
             
     @staticmethod
-    def writeFile(file_path, data):   
+    def writeFile(file_path: str, data: str):   
         return MainUtil.execute(FileUtility.writeFile, file_path, data)
                 
     @staticmethod
-    def appendFile(file_path, data):   
+    def appendFile(file_path: str, data: str):   
         return MainUtil.execute(FileUtility.appendFile, file_path, data)
             
     @staticmethod
-    def createDirectoryIfNotExists(file_path):
+    def createDirectoryIfNotExists(file_path: str):
         return MainUtil.execute(FileUtility.createDirectoryIfNotExists, file_path)
     @staticmethod
-    def checkIfDirectoryExists(file_path):
+    def checkIfDirectoryExists(file_path: str):
         return MainUtil.execute(FileUtility.checkIfDirectoryExists, file_path)
     
     @staticmethod
-    def checkIfFileExists(file_path):
+    def checkIfFileExists(file_path: str):
         return MainUtil.execute(FileUtility.checkIfFileExists, file_path)
     
     @staticmethod
