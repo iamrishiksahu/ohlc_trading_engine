@@ -14,3 +14,10 @@ class LogType(Enum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
+    
+class BrokerType(Enum):
+    FYERS="FYERS"
+
+class Side(Enum):    
+    BUY = "BUY"
+    SELL = "SELL"

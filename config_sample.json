@@ -5,12 +5,16 @@
         "app_secret": "ADFAEF345DFS",
         "redirect_uri": "http://127.0.0.1:8080/callback"
     },
-
     "trading": [
         {
             "instance_name": "sample_instance",
             "enabled": true,
-            "symbol": "NSE:NIFTY50-INDEX",
+            "symbols": [
+                {
+                    "symbol": "NSE:NIFTY50-INDEX",
+                    "interval": 30
+                }
+            ],
             "lot_size": 1,
             "interval": 30,
             "strategy": "SB_VOL",
@@ -25,5 +29,4 @@
             }
         }
     ]
-
 }

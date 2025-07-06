@@ -24,7 +24,7 @@ class Main:
         self.app_secret: str = ""
         self.redirect_uri: str = ""
         
-        self.trading_configs = []
+        self.trading_configs: json = []
         self.live_trader_instances: list[LiveTrader] = []
 
         # Config
@@ -101,7 +101,12 @@ class Main:
             if not access_token:
                 raise Exception("Failed to generate access token.")
 
-            # Save token
+            # save toke in global context
+            
+            import globals
+            globals.config["fyers_access_token"] = access_token
+            
+            # Save token in file
             with open(self.token_path, "w") as f:
                 json.dump(token_data, f)
             Logger.log("✅ Token saved to", self.token_path)
@@ -126,7 +131,7 @@ class Main:
             self.client_id = fyers_config["client_id"]
             self.redirect_uri = fyers_config["redirect_uri"]
             
-            trading_config = json_data["trading"]
+            trading_config: json = json_data["trading"]
             for t_cfg in trading_config:
                 if t_cfg["enabled"]:
                     t_cfg["start_time"] = [int(part) for part in t_cfg["start_time"].split(":")]

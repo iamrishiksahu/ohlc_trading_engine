@@ -20,11 +20,10 @@ class StrategySBVOL(StrategyBase):
     def __init__(self, params: SBVolParams, interval: int):
         self.strategy_params = params
         self.is_valid = False
-        self.required_ohlc_length = 1
+        
         self.interval = interval
-        self.validate(params)
 
-    def process(self, df: pd.DataFrame) -> StrategySignal:
+    def process_ohlc(self, df: pd.DataFrame, symbol: str) -> tuple[StrategySignal, str]:
         if not self.is_valid:
             return
         
@@ -88,7 +87,7 @@ class StrategySBVOL(StrategyBase):
             signal = StrategySignal.SELL
 
         Logger.log(f"SB_VOL:: candle: {df["datetime"].iloc[-1]}, last_trend: {trend_series.iloc[-1]}, curr_trend: {trend_series.shift(1).iloc[-1]}, up: {up_final[-1]}, dn: {dn_final[-1]}, signal: {signals[-1]}")
-        return signals[-1]
+        return signals[-1], symbol
     
     def calculate_atr(self, df: pd.DataFrame):
         if self.strategy_params.use_true_atr:
@@ -97,6 +96,13 @@ class StrategySBVOL(StrategyBase):
             tr = df['high'].combine(df['close'].shift(), lambda h, c: np.maximum(h, c)) - \
                  df['low'].combine(df['close'].shift(), lambda l, c: np.minimum(l, c))
             return tr.rolling(window=self.strategy_params.atr_period).mean()    
+    
+    def init(self) -> bool:
+        for symbol in self.symbols:
+            symbol.required_ohlc_length = max(self.strategy_params.atr_period / 10 * symbol.interval / 2, 1)
+        
+        self.symbols_to_subscribe_live_feed = [] # live feed not required for this strategy
+        return self.validate(self.strategy_params)
     
     def validate(self, strategy_params: SBVolParams) -> bool:
         if not isinstance(strategy_params.atr_period, int):
@@ -109,7 +115,8 @@ class StrategySBVOL(StrategyBase):
             Logger.error("use_true_atr must be a boolean")
             return
         self.is_valid = True
-        self.required_ohlc_length = max(self.strategy_params.atr_period / 10 * self.interval / 2, 1)
+        
+
         Logger.log(f"required_ohlc_length: {self.required_ohlc_length}")
         Logger.log("Strategy validated successfully")
         
